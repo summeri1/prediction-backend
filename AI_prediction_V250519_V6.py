@@ -14,6 +14,8 @@ import urllib3
 import concurrent.futures
 import warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)  # SSL 경고 비활성화
+from sklearn.exceptions import InconsistentVersionWarning
+warnings.filterwarnings("ignore", category=InconsistentVersionWarning)
 from io import BytesIO
 from tensorflow.keras import models
 from tensorflow.keras.utils import register_keras_serializable
@@ -528,6 +530,12 @@ class Predictor:
 
 # --- 메인 UI 클래스 ---
 class Ui_KIHS(object):
+    def __init__(self):
+        self.local_working_folder = 'prediction_temp_files'
+        self.google_api_scopes = ['https://www.googleapis.com/auth/drive']
+        self.google_file_id = "16g4Btk17vNHSTPy-b40kxCESY38g0cD-"
+        self.service_account_credential_file = resource_path("service_credentials.json")
+        self.is_headless = False
     STATION_NAME_MAP = {
         "1002698": "영월군(팔괴교)", "1006690": "원주시(문막교)", "1007625": "여주시(남한강교)",
         "1014650": "홍천군(홍천교)", "1014680": "홍천군(반곡교)", "1016670": "광주시(서하교)",
@@ -694,7 +702,42 @@ class Ui_KIHS(object):
         #            '5001627', '5001640', '5001645', '5001655', '5001660'],
     }
 
-    def setupUi(self, KIHS):
+    def setupUi(self, KIHS=None):
+        # ─── HEADLESS MODE INITIALIZATION ───
+        # KIHS==None 이면 GUI 생성 대신 자동주기 모드에 필요한 최소 속성만 초기화
+        if KIHS is None:
+            # 1) 자동토글 체크박스 대체 객체
+            class DummyCheckBox:
+                def isChecked(self_inner): return True
+                def setChecked(self_inner, v): pass
+            self.checkBox_auto = DummyCheckBox()
+            # 2) 더미 프로그레스바 (download_clicked 에서 setValue 호출 방어)
+            class DummyProgressBar:
+                def setValue(self, v): pass
+            self.progressBar = DummyProgressBar()
+            # 3) 더미 콤보박스: 전체 관측소 코드 리스트를 순환할 수 있도록
+            class DummyComboBox:
+                def __init__(self, items):
+                    self._items = items
+                def count(self):
+                    return len(self._items)
+                def itemText(self, i):
+                    return self._items[i]
+            station_codes = list(self.STATION_NAME_MAP.keys())
+            self.comboBox = DummyComboBox(station_codes)
+            # 4) 더미 타이머: isActive() 호출 방어
+            class DummyTimer:
+                def isActive(self): return False
+                def start(self, ms=None): pass
+                def stop(self): pass
+            self._auto_timer = DummyTimer()
+            # 5) 기타 GUI 위젯 더미
+            self._download_has_errors = False
+            self.textBrowser = None
+            self.tableWidget = None
+            self.tableWidget_2 = None
+            return
+
         # --- Google Drive 및 로컬 경로 설정 ---
         # 스크립트 실행 위치 기준으로 'prediction_temp_files' 폴더 경로 설정
         # PyInstaller로 패키징된 경우 sys._MEIPASS를 사용하지 않고, 실행 파일 위치 기준으로 설정
@@ -1247,7 +1290,7 @@ class Ui_KIHS(object):
                 fields='id, name, modifiedTime'  # 응답으로 받을 메타데이터 필드
             ).execute()
 
-            success_log_msg = (f"파일 '{updated_file_metadata.get('name')}' (ID: {updated_file_metadata.get('id')})이(가) "
+            success_log_msg = (f"파일 '{updated_file_metadata.get('name')}'이(가) "
                                f"Google Drive에 성공적으로 업데이트되었습니다. (수정 시간: {updated_file_metadata.get('modifiedTime')})")
             logging.info(success_log_msg)
             if not self.checkBox_auto.isChecked():  # GUI 모드에서만 성공 알림
@@ -1282,15 +1325,15 @@ class Ui_KIHS(object):
             candidate += timedelta(hours=1)
         next_run_time = candidate
 
-        wait_milliseconds = int((next_run_time - now).total_seconds() * 1000)
-        if wait_milliseconds < 0:
-            wait_milliseconds = 1000 * 60 * 60
+        wait_ms = int((next_run_time - now).total_seconds() * 1000)
+        if wait_ms < 0:
+            wait_ms = 1000 * 60 * 60
             logging.warning(f"다음 실행 시간 계산 오류. 1시간 후로 강제 설정: {next_run_time}")
 
-        logging.info(f"다음 자동 실행 예약: {next_run_time} (대기 시간: {wait_milliseconds / 1000 / 60:.2f}분)")
+        logging.info(f"다음 자동 실행 예약: {next_run_time} (대기 시간: {wait_ms / 1000 / 60:.2f}분)")
 
         if hasattr(self, '_auto_timer'):
-            self._auto_timer.start(wait_milliseconds)
+            self._auto_timer.start(wait_ms)
         else:
             logging.error("자동 실행 타이머 객체(self._auto_timer)가 초기화되지 않았습니다.")
 
@@ -1318,7 +1361,7 @@ class Ui_KIHS(object):
             self.observation2_codes,
             start_time_dt,
             end_time_dt,
-            self.current_operation_save_path,  # 이 인자는 스레드 내에서 현재 직접 사용되지 않음
+            current_save_path,  # 이 인자는 스레드 내에서 현재 직접 사용되지 않음
             max_workers=2
         )
         self.download_thread_instance.errorOccurred.connect(self.on_worker_error)
@@ -1335,8 +1378,8 @@ class Ui_KIHS(object):
         self.progressBar.setValue(progress_value)
 
     def on_download_completed(self, all_data):
-        # --- 자동 실행 모드, 다운로드 중 에러 발생했으면 30초 뒤 재시도 ---
-        is_automated = self.checkBox_auto.isChecked()
+        # --- 자동 실행 모드, 다운로드 중 에러 발생했으면 10초 뒤 재시도 ---
+        is_automated = self.checkBox_auto.isChecked() or getattr(self, 'is_headless', False)
         if is_automated and getattr(self, '_download_has_errors', False):
             logging.warning("기초자료 다운로드 중 일부 오류 발생, 10초 후 재시도합니다.")
             # 재시도 플래그 초기화
@@ -1397,7 +1440,11 @@ class Ui_KIHS(object):
 
         if is_automated:
             logging.info(f"자동 실행: 기초자료 다운로드 완료 - {full_raw_filepath}")
-            all_codes = [self.comboBox.itemText(i)[:7] for i in range(self.comboBox.count())]
+            # GUI 모드면 comboBox, 헤드리스면 모델 변수 전체 키
+            if hasattr(self, 'comboBox'):
+                all_codes = list(self.STATION_NAME_MAP.keys())
+            else:
+                all_codes = list(self.model_variables.keys())
             self.predict_all_locations(all_codes, self.latest_raw_data_file, self.local_working_folder)
         else:
             QMessageBox.information(None, "다운로드 완료", f"통합 자료가 다음 경로에 저장되었습니다:\n'{full_raw_filepath}'")
@@ -1710,7 +1757,7 @@ class Ui_KIHS(object):
             else:
                 logging.error(f"자동모드: 업로드할 파일이 존재하지 않습니다: {out_path}")
             # ── 2) 업로드 성공 여부와 관계없이 다음 주기 예약 ──
-            if hasattr(self, '_auto_timer'):
+            if hasattr(self, '_auto_timer') and self._auto_timer.isActive():
                 logging.info("다음 자동 실행 주기를 예약합니다.")
                 self._schedule_next_cycle()
 
@@ -2097,17 +2144,24 @@ def one_cycle():
     ui.download_clicked()
 
 def headless_loop(ui: Ui_KIHS):
-    """헤드리스 모드: 매시 xx:10에 download_clicked 실행, 그 후 매시간 반복."""
-    # 첫 실행까지 대기
+    """헤드리스 모드: ① 켜진 즉시 download_clicked() → ② 다음 xx:10까지 대기 → ③ 매시간 xx:10에 반복"""
+    # ① 프로그램 시작하자마자 한 번 실행
+    try:
+        logging.info("[헤드리스] 첫 실행 즉시 실행")
+        ui.download_clicked()
+    except Exception as e:
+        logging.error(f"[헤드리스] 첫 실행 예외: {e}", exc_info=True)
+
+    # ② 다음 xx:10 시각까지 대기
     now = datetime.now()
-    first_run = now.replace(minute=10, second=0, microsecond=0)
-    if first_run <= now:
-        first_run += timedelta(hours=1)
-    wait_sec = (first_run - now).total_seconds()
-    logging.info(f"[헤드리스] 첫 실행까지 대기: {wait_sec/60:.1f}분 (다음 실행 시각: {first_run})")
+    next_run = now.replace(minute=10, second=0, microsecond=0)
+    if next_run <= now:
+        next_run += timedelta(hours=1)
+    wait_sec = (next_run - now).total_seconds()
+    logging.info(f"[헤드리스] 다음 실행까지 대기: {wait_sec/60:.1f}분 (다음 실행 시각: {next_run})")
     time.sleep(wait_sec)
 
-    # 무한 반복
+    # ③ 매시간 xx:10에 반복
     while True:
         try:
             ui.download_clicked()
@@ -2118,40 +2172,45 @@ def headless_loop(ui: Ui_KIHS):
         time.sleep(3600)
 
 def main(): # main 함수 정의는 그대로 유지
+    # 헤드리스 vs GUI 분기
     if '--auto' in sys.argv:
-        ui = Ui_KIHS()
-        ui.setupUi(None)
-        ui.checkBox_auto.setChecked(True)
         app = QCoreApplication(sys.argv)
-        app.exec()
+        ui = Ui_KIHS()
+        ui.is_headless = True
+        ui.setupUi(None)  # None 을 넘겨서 GUI 요소 없이 초기화
+        ui.checkBox_auto.setChecked(True)
+        logging.info("헤드리스 자동주기 모드 시작")
+        # 다운로드→예측→업로드를 트리거하는 타이머 준비
+        timer = QTimer()
+        timer.setSingleShot(True)
+        timer.timeout.connect(ui.download_clicked)
+        # 다음 실행 시간 계산 함수
+        def schedule_next():
+            now = datetime.now()
+            # 매시 xx:10 에 실행
+            next_run = now.replace(minute=10, second=0, microsecond=0)
+            if next_run <= now:
+                next_run += timedelta(hours=1)
+            wait_ms = int((next_run - now).total_seconds() * 1000)
+            logging.info(f"[헤드리스] 다음 실행까지 대기: {wait_ms / 1000 / 60:.1f}분 (실행 시각: {next_run})")
+            timer.start(wait_ms)
+
+        # ① 첫 실행 즉시
+        ui.download_clicked()
+        # ② 다운로드 완료 신호가 올 때마다 다음 스케줄 등록
+        ui.download_thread_instance.download_completed.connect(lambda _: schedule_next())
+        # ③ 첫 실행 후 다음 사이클 예약
+        schedule_next()
+        # 이벤트 루프 시작
+        return app.exec()
     else:
+        # 기존 GUI 모드
         app = QApplication(sys.argv)
         dlg = QDialog()
         ui = Ui_KIHS()
         ui.setupUi(dlg)
         dlg.show()
-        sys.exit(app.exec())
+        return app.exec()
 
 if __name__ == '__main__':
-    # 최상위 예외 처리
-    try:
-        # --auto 플래그를 주면 헤드리스 모드로
-        if '--auto' in sys.argv:
-            logging.info("헤드리스 자동주기 모드 시작")
-            ui = Ui_KIHS()           # 내부적으로 QTimer 없이도 다운로드만 쓰므로 QApplication 없이 생성 가능
-            headless_loop(ui)
-
-        else:
-            # GUI 모드
-            from PySide6.QtWidgets import QApplication, QDialog
-            app = QApplication(sys.argv)
-            dlg = QDialog()
-            ui = Ui_KIHS()
-            ui.setupUi(dlg)
-            dlg.show()
-            sys.exit(app.exec())
-
-    except SystemExit:
-        pass
-    except Exception as e:
-        logging.critical(f"최상위 레벨에서 처리되지 않은 예외 발생: {e}", exc_info=True)
+    sys.exit(main())
