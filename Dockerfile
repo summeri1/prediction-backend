@@ -17,6 +17,6 @@ ENV PYTHONUNBUFFERED=1 \
     CLOUD_ENV=true \
     WORKDIR=/app
 
-RUN mkdir -p ${WORKDIR}
+RUN mkdir -p /app/prediction_temp_files && chmod 777 /app/prediction_temp_files
 
 CMD ["python", "AI_prediction_V250519_V8.py", "--auto"]
