@@ -44,8 +44,13 @@ import ssl
 ssl._create_default_https_context = ssl._create_unverified_context   #전역 SSL 컨텍스트 우회
 
 HEADLESS = ('--auto' in os.getenv('PYTHON_ARGS','')) or bool(os.getenv('CLOUD_ENV'))
+CLOUD = os.getenv('CLOUD_ENV')
+# (A) CLOUD_ENV 인 경우 WORKDIR 대신 /app 또는 /tmp 를 기본으로
+if CLOUD:
+    BASE_DIR = '/app'     # 또는 '/tmp'
+else:
+    BASE_DIR = os.getenv('WORKDIR', os.path.dirname(os.path.abspath(__file__)))
 
-BASE_DIR = os.getenv('WORKDIR', os.path.dirname(os.path.abspath(__file__)))
 # 시크릿으로 주입된 서비스 계정 JSON 을 파일로 덤프
 creds_json = os.getenv('SERVICE_CREDENTIALS_JSON')
 if creds_json:
