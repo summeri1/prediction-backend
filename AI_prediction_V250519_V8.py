@@ -44,10 +44,9 @@ import ssl
 ssl._create_default_https_context = ssl._create_unverified_context   #전역 SSL 컨텍스트 우회
 
 HEADLESS = ('--auto' in os.getenv('PYTHON_ARGS','')) or bool(os.getenv('CLOUD_ENV'))
-CLOUD = os.getenv('CLOUD_ENV')
-# (A) CLOUD_ENV 인 경우 WORKDIR 대신 /app 또는 /tmp 를 기본으로
-if CLOUD:
-    BASE_DIR = '/app'     # 또는 '/tmp'
+# 클라우드 배포 시에만 /tmp를 사용
+if os.getenv('CLOUD_ENV'):
+    BASE_DIR = '/tmp'  
 else:
     BASE_DIR = os.getenv('WORKDIR', os.path.dirname(os.path.abspath(__file__)))
 
