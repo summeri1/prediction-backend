@@ -19,4 +19,4 @@ ENV PYTHONUNBUFFERED=1 \
 
 RUN mkdir -p ${WORKDIR}
 
-CMD ["python", "AI_prediction_V250519_V8.py", "--auto", "--server.port=8502", "--server.address=0.0.0.0"]
+CMD ["python", "AI_prediction_V250519_V8.py", "--auto"]
