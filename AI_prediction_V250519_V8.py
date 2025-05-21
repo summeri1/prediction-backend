@@ -29,19 +29,21 @@ import matplotlib.pyplot as plt
 import joblib  # Scaler 로딩/저장용
 from matplotlib.animation import FuncAnimation
 from matplotlib.dates import DateFormatter, date2num, HourLocator
-from PySide6.QtCore import (QCoreApplication, QRect, QSize, QMetaObject, Qt, QThread, Signal, QTimer)
-from PySide6.QtGui import (QBrush, QColor, QFont, QPixmap, QMovie, QIcon)
 
-HEADLESS = '--auto' in sys.argv
+HEADLESS = ('--auto' in os.getenv('PYTHON_ARGS','')) or bool(os.getenv('CLOUD_ENV'))
 if not HEADLESS:
     from PySide6.QtWidgets import (QAbstractItemView, QApplication, QComboBox, QDialog, QLabel, QPushButton, QCheckBox,
                                    QTableWidget, QTableWidgetItem, QTextBrowser, QMessageBox, QFileDialog, QVBoxLayout,
                                    QProgressBar, QWidget, QHBoxLayout, QSizePolicy)
+    from PySide6.QtCore import (QCoreApplication, QRect, QSize, QMetaObject, Qt, QThread, Signal, QTimer)
+    from PySide6.QtGui import (QBrush, QColor, QFont, QPixmap, QMovie, QIcon)
 else:
     pass
 
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context   #전역 SSL 컨텍스트 우회
+
+HEADLESS = ('--auto' in os.getenv('PYTHON_ARGS','')) or bool(os.getenv('CLOUD_ENV'))
 
 BASE_DIR = os.getenv('WORKDIR', os.path.dirname(os.path.abspath(__file__)))
 # 시크릿으로 주입된 서비스 계정 JSON 을 파일로 덤프
