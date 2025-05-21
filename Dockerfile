@@ -15,7 +15,7 @@ COPY . .
 
 ENV PYTHONUNBUFFERED=1 \
     CLOUD_ENV=true \
-    WORKDIR=/app/WORKDIR
+    WORKDIR=/app
 
 RUN mkdir -p ${WORKDIR}
 
