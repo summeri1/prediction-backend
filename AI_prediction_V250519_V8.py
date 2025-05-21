@@ -43,13 +43,14 @@ else:
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context   #전역 SSL 컨텍스트 우회
 
-# (A) JSON 직접 등록한 경우
+BASE_DIR = os.getenv('WORKDIR', os.path.dirname(os.path.abspath(__file__)))
+# 시크릿으로 주입된 서비스 계정 JSON 을 파일로 덤프
 creds_json = os.getenv('SERVICE_CREDENTIALS_JSON')
 if creds_json:
-    with open(os.path.join(os.getenv('WORKDIR'), 'service_credentials.json'), 'w', encoding='utf-8') as f:
+    creds_path = os.path.join(BASE_DIR, 'service_credentials.json')
+    with open(creds_path, 'w', encoding='utf-8') as f:
         f.write(creds_json)
 
-BASE_DIR = os.getenv('WORKDIR', os.path.dirname(os.path.abspath(__file__)))
 LOCAL_WORKING_FOLDER = os.path.join(BASE_DIR, "prediction_temp_files")
 os.makedirs(LOCAL_WORKING_FOLDER, exist_ok=True)
 
