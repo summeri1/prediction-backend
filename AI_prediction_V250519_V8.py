@@ -225,7 +225,7 @@ class DownloadThread(QThread):
         except requests.exceptions.Timeout as e:
             logging.warning(f"타임아웃: {url}")
             raise RuntimeError(f"{observation_code} 요청 타임아웃") from e
-        except requests.HTTPError as e:
+        except requests.exceptions.HTTPError as e:
             code = e.response.status_code
             logging.error(f"HTTP {code} 오류: {url}")
             raise RuntimeError(f"{observation_code} HTTP 오류({code})") from e
@@ -243,7 +243,7 @@ class DownloadThread(QThread):
         except requests.exceptions.Timeout as e:
             logging.warning(f"타임아웃(강수량): {url}")
             raise RuntimeError(f"{observation_code} 강수량 요청 타임아웃") from e
-        except requests.HTTPError as e:
+        except requests.exceptions.HTTPError as e:
             code = e.response.status_code
             logging.error(f"강수량 HTTP {code} 오류: {url}")
             raise RuntimeError(f"{observation_code} 강수량 HTTP 오류({code})") from e
