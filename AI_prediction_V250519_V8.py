@@ -29,6 +29,7 @@ import matplotlib.pyplot as plt
 import joblib  # Scaler 로딩/저장용
 from matplotlib.animation import FuncAnimation
 from matplotlib.dates import DateFormatter, date2num, HourLocator
+from PySide6.QtCore import QCoreApplication, QTimer, QThread, Signal
 
 HEADLESS = ('--auto' in os.getenv('PYTHON_ARGS','')) or bool(os.getenv('CLOUD_ENV'))
 if not HEADLESS:
@@ -46,7 +47,7 @@ ssl._create_default_https_context = ssl._create_unverified_context   #전역 SSL
 HEADLESS = ('--auto' in os.getenv('PYTHON_ARGS','')) or bool(os.getenv('CLOUD_ENV'))
 # 클라우드 배포 시에만 /tmp를 사용
 if os.getenv('CLOUD_ENV'):
-    BASE_DIR = '/tmp'  
+    BASE_DIR = '/tmp'
 else:
     BASE_DIR = os.getenv('WORKDIR', os.path.dirname(os.path.abspath(__file__)))
 
@@ -2195,7 +2196,14 @@ def main(): # main 함수 정의는 그대로 유지
         ui.setupUi(None)  # None 을 넘겨서 GUI 요소 없이 초기화
         ui.checkBox_auto.setChecked(True)
         logging.info("헤드리스 자동주기 모드 시작")
-        # 다운로드→예측→업로드를 트리거하는 타이머 준비
+
+        # 1) cleanup: 앱 종료 직전 스레드가 끝날 때까지 대기
+        def cleanup():
+            if hasattr(ui, 'download_thread_instance') and ui.download_thread_instance.isRunning():
+                logging.info("종료 전 DownloadThread 종료 대기…")
+                ui.download_thread_instance.wait()
+        app.aboutToQuit.connect(cleanup)
+        # 2) 스케줄러 설정
         timer = QTimer()
         timer.setSingleShot(True)
         timer.timeout.connect(ui.download_clicked)
