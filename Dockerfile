@@ -19,4 +19,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 RUN mkdir -p /app/prediction_temp_files && chmod 777 /app/prediction_temp_files
 
+COPY WORKDIR/models /tmp/models
+COPY WORKDIR/scalers /tmp/scalers
+
 CMD ["python", "AI_prediction_V250519_V8.py", "--auto"]
