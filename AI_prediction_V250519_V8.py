@@ -78,11 +78,6 @@ for h in root.handlers[:]: root.removeHandler(h)
 
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s')
 
-if os.getenv('CLOUD_ENV'):     # 클라우드에선 이 env var 를 주도록
-    handler = logging.StreamHandler(sys.stdout)
-else:                          # 로컬에선 기존처럼 파일
-    handler = logging.FileHandler(os.path.join(BASE_DIR, 'app.log'), mode='w', encoding='utf-8')
-
 handler.setLevel(logging.INFO)
 handler.setFormatter(formatter)
 root.addHandler(handler)
