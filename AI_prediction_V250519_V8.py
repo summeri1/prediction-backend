@@ -85,6 +85,13 @@ for h in root.handlers[:]: root.removeHandler(h)
 
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s')
 
+# handler 생성부: CLOUD_ENV 여부에 따라 StreamHandler 또는 FileHandler 할당
+if os.getenv('CLOUD_ENV'):
+    handler = logging.StreamHandler(sys.stdout)
+else:
+    logfile = os.path.join(BASE_DIR, 'app.log')
+    handler = logging.FileHandler(logfile, mode='w', encoding='utf-8')
+
 handler.setLevel(logging.INFO)
 handler.setFormatter(formatter)
 root.addHandler(handler)
