@@ -210,7 +210,7 @@ class DownloadThread(QThread):
         return all_entries
 
     def fetch_data(self, observation_code, start_time, end_time):
-        url = f"https://api.hrfco.go.kr/761B0170-5681-4544-91A3-CFB7FF7AEA2C/waterlevel/list/1H/{observation_code}/{start_time.strftime('%Y%m%d%H%M')}/{end_time.strftime('%Y%m%d%H%M')}.xml"
+        url = f"https://api.hrfco.go.kr/B34B96D2-76C9-4405-B147-134B1B94CF50/waterlevel/list/1H/{observation_code}/{start_time.strftime('%Y%m%d%H%M')}/{end_time.strftime('%Y%m%d%H%M')}.xml"
         try:
             response = requests.get(url, verify=False, timeout=150)
             response.raise_for_status()
@@ -227,7 +227,7 @@ class DownloadThread(QThread):
         return response.text
 
     def fetch_data_2(self, observation_code, start_time, end_time):
-        url = f"https://api.hrfco.go.kr/761B0170-5681-4544-91A3-CFB7FF7AEA2C/rainfall/list/1H/{observation_code}/{start_time.strftime('%Y%m%d%H%M')}/{end_time.strftime('%Y%m%d%H%M')}.xml"
+        url = f"https://api.hrfco.go.kr/B34B96D2-76C9-4405-B147-134B1B94CF50/rainfall/list/1H/{observation_code}/{start_time.strftime('%Y%m%d%H%M')}/{end_time.strftime('%Y%m%d%H%M')}.xml"
         try:
             response = requests.get(url, verify=False, timeout=150)
             response.raise_for_status()
