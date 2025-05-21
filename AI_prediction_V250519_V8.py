@@ -27,6 +27,14 @@ from tensorflow.keras.losses import MeanSquaredError
 import xml.etree.ElementTree as ET
 import matplotlib.pyplot as plt
 import joblib  # Scaler 로딩/저장용
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+session = requests.Session()
+retries = Retry(total=5, backoff_factor=1,
+                status_forcelist=[500, 502, 503, 504],
+                allowed_methods=["HEAD", "GET", "OPTIONS"])
+adapter = HTTPAdapter(max_retries=retries)
+session.mount("https://", adapter)
 from matplotlib.animation import FuncAnimation
 from matplotlib.dates import DateFormatter, date2num, HourLocator
 from PySide6.QtCore import QCoreApplication, QTimer, QThread, Signal
@@ -212,9 +220,9 @@ class DownloadThread(QThread):
     def fetch_data(self, observation_code, start_time, end_time):
         url = f"https://api.hrfco.go.kr/B34B96D2-76C9-4405-B147-134B1B94CF50/waterlevel/list/1H/{observation_code}/{start_time.strftime('%Y%m%d%H%M')}/{end_time.strftime('%Y%m%d%H%M')}.xml"
         try:
-            response = requests.get(url, verify=False, timeout=150)
+            response = session.get(url, verify=False, timeout=(10, 25))
             response.raise_for_status()
-        except requests.Timeout as e:
+        except requests.exceptions.Timeout as e:
             logging.warning(f"타임아웃: {url}")
             raise RuntimeError(f"{observation_code} 요청 타임아웃") from e
         except requests.HTTPError as e:
@@ -229,10 +237,10 @@ class DownloadThread(QThread):
     def fetch_data_2(self, observation_code, start_time, end_time):
         url = f"https://api.hrfco.go.kr/B34B96D2-76C9-4405-B147-134B1B94CF50/rainfall/list/1H/{observation_code}/{start_time.strftime('%Y%m%d%H%M')}/{end_time.strftime('%Y%m%d%H%M')}.xml"
         try:
-            response = requests.get(url, verify=False, timeout=150)
+            response = session.get(url, verify=False, timeout=(10, 25))
             response.raise_for_status()
             return response.text
-        except requests.Timeout as e:
+        except requests.exceptions.Timeout as e:
             logging.warning(f"타임아웃(강수량): {url}")
             raise RuntimeError(f"{observation_code} 강수량 요청 타임아웃") from e
         except requests.HTTPError as e:
@@ -364,7 +372,7 @@ def download_and_process_dam_data(damcd, start_date, end_date, is_automated=Fals
     title = titles.get(str(damcd), 'default_title')
     url = f"https://www.water.or.kr/kor/realtime/excel/excelDown.do?mode=getExcelDataHDetailExcel{title}%20:%20{formatted_start_date}%20~%20{formatted_end_date}&damCd={damcd}&startDate={formatted_start_date}&endDate={formatted_end_date}"
     try:
-        response = requests.get(url, verify=False, timeout=150)
+        response = session.get(url, verify=False, timeout=(10, 25))
         response.raise_for_status()
         excel_data = BytesIO(response.content)
     except requests.exceptions.RequestException as req_ex:
