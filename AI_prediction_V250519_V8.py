@@ -229,7 +229,7 @@ class DownloadThread(QThread):
             code = e.response.status_code
             logging.error(f"HTTP {code} 오류: {url}")
             raise RuntimeError(f"{observation_code} HTTP 오류({code})") from e
-        except requests.RequestException as e:
+        except requests.exceptions.RequestException as e:
             logging.error(f"네트워크 오류: {e}")
             raise RuntimeError(f"{observation_code} 네트워크 오류") from e
         return response.text
@@ -247,7 +247,7 @@ class DownloadThread(QThread):
             code = e.response.status_code
             logging.error(f"강수량 HTTP {code} 오류: {url}")
             raise RuntimeError(f"{observation_code} 강수량 HTTP 오류({code})") from e
-        except requests.RequestException as e:
+        except requests.exceptions.RequestException as e:
             logging.error(f"강수량 네트워크 오류: {e}")
             raise RuntimeError(f"{observation_code} 강수량 네트워크 오류") from e
 
@@ -375,7 +375,7 @@ def download_and_process_dam_data(damcd, start_date, end_date, is_automated=Fals
         response = session.get(url, verify=False, timeout=(10, 25))
         response.raise_for_status()
         excel_data = BytesIO(response.content)
-    except requests.exceptions.RequestException as req_ex:
+    except requests.exceptions.RequestException as e:
         error_msg = f"댐 데이터({damcd}) 다운로드 실패: {req_ex}"
         logging.error(error_msg)
         if not is_automated:  # is_automated 플래그 확인
