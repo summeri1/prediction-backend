@@ -11,6 +11,14 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# ① tzdata 설치
+RUN apt-get update && apt-get install -y tzdata \
+    && ln -fs /usr/share/zoneinfo/Asia/Seoul /etc/localtime \
+    && dpkg-reconfigure --frontend noninteractive tzdata
+
+# ② TZ 환경변수 설정
+ENV TZ=Asia/Seoul
+
 COPY . .
 
 ENV PYTHONUNBUFFERED=1 \
