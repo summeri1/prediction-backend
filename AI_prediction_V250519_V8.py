@@ -218,7 +218,7 @@ class DownloadThread(QThread):
         return all_entries
 
     def fetch_data(self, observation_code, start_time, end_time):
-        url = f"https://api.hrfco.go.kr/B34B96D2-76C9-4405-B147-134B1B94CF50/waterlevel/list/1H/{observation_code}/{start_time.strftime('%Y%m%d%H%M')}/{end_time.strftime('%Y%m%d%H%M')}.xml"
+        url = f"https://api.hrfco.go.kr/{self.api_key}/waterlevel/list/1H/{observation_code}/{start_time.strftime('%Y%m%d%H%M')}/{end_time.strftime('%Y%m%d%H%M')}.xml"
         try:
             response = session.get(url, verify=False, timeout=(10, 25))
             response.raise_for_status()
@@ -235,7 +235,7 @@ class DownloadThread(QThread):
         return response.text
 
     def fetch_data_2(self, observation_code, start_time, end_time):
-        url = f"https://api.hrfco.go.kr/B34B96D2-76C9-4405-B147-134B1B94CF50/rainfall/list/1H/{observation_code}/{start_time.strftime('%Y%m%d%H%M')}/{end_time.strftime('%Y%m%d%H%M')}.xml"
+        url = f"https://api.hrfco.go.kr/{self.api_key}/rainfall/list/1H/{observation_code}/{start_time.strftime('%Y%m%d%H%M')}/{end_time.strftime('%Y%m%d%H%M')}.xml"
         try:
             response = session.get(url, verify=False, timeout=(10, 25))
             response.raise_for_status()
@@ -376,7 +376,7 @@ def download_and_process_dam_data(damcd, start_date, end_date, is_automated=Fals
         response.raise_for_status()
         excel_data = BytesIO(response.content)
     except requests.exceptions.RequestException as e:
-        error_msg = f"댐 데이터({damcd}) 다운로드 실패: {req_ex}"
+        error_msg = f"댐 데이터({damcd}) 다운로드 실패: {e}"
         logging.error(error_msg)
         if not is_automated:  # is_automated 플래그 확인
             QMessageBox.critical(None, "댐 데이터 오류", error_msg)
@@ -570,7 +570,7 @@ class Ui_KIHS(object):
         "4009630": "구례군(송정리)", "4009640": "광양시(남도대교)", "5001640": "광주광역시(용산교)",
         "5001645": "광주광역시(첨단대교)"
     }
-    api_key = "B34B96D2-76C9-4405-B147-134B1B94CF50"
+    api_key = "761B0170-5681-4544-91A3-CFB7FF7AEA2C"
     observation_codes = ['1002685', '1002687', '1002698', '1005697', '1006670', '1006672', '1006680', '1006690',
                              '1007615', '1007620', '1007625', '1014630', '1014640', '1014650', '1014665', '1014680',
                              '1016607', '1016650', '1016660', '1016670', '1016695', '1018620', '1018625', '1018630',
